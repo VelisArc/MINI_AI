@@ -332,7 +332,7 @@ Is project mein contribute karne ke liye:
 
 ## 📝 License
 
-[Your license here - suggest MIT or Apache 2.0]
+[License MIT]
 
 ---
 
@@ -348,8 +348,8 @@ Built with ❤️ using:
 
 ## 📧 Contact
 
-[Your contact info]
+[velisarcofficial@gmail.com]
 
 ---
 
-**Remember:** "The best AI is the one that improves itself." - Project Caelonyx Motto
+**Remember:** "The best AI is the one that improves itself." - Project Chimera Motto
