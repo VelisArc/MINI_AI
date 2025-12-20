@@ -1,6 +1,0 @@
-# Caelonyx AI Stack - CPU-Only Dependencies
-torch
-torchvision
-faiss-cpu
-numpy
-gradio
