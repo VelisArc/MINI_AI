@@ -1,4 +1,4 @@
-# 🚀 Project Caelonyx / Chimera
+# 🚀 Project Chimera
 
 **A Self-Evolving, Multi-Modal AGI System with Hive Mind Architecture**
 
