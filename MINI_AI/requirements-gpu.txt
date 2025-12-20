@@ -1,0 +1,7 @@
+# Caelonyx AI Stack - GPU-Enabled Dependencies
+torch
+torchvision
+cupy-cuda12x
+faiss-gpu
+numpy
+gradio
