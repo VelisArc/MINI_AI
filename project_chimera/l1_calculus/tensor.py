@@ -4,14 +4,18 @@ from ..l0_hal.hardware_abstraction import HAL
 from .ops import Add, Mul, MatMul, Tanh, Sum, Slice, Exp, Log, Softmax, Reshape, ReLU, Transpose
 
 class Tensor:
- def __init__(self, data, requires_grad=False):
+ def __init__(self, data, requires_grad=False, dtype=None):
   # --- THE FIX IS HERE ---
   # डेटा को हमेशा numpy array में बदलें अगर वह नहीं है
   if not isinstance(data, (np.ndarray, HAL.ARRAY_LIB.ndarray)):
-    data = np.array(data, dtype=np.float32)
+    data = np.array(data)
+
+  # Determine dtype: default to float32 if not specified, or respect input dtype if compatible
+  target_dtype = dtype if dtype is not None else (data.dtype if data.dtype in [np.float32, np.float16, np.int32, np.int64, np.bool_] else np.float32)
+
   # --- END OF FIX ---
 
-  self.data = HAL.to_device(data.astype(np.float32) if hasattr(data, 'astype') else data)
+  self.data = HAL.to_device(data.astype(target_dtype) if hasattr(data, 'astype') else data)
   self.grad = None
   self.requires_grad = requires_grad
   self._backward = lambda: None
@@ -46,7 +50,18 @@ class Tensor:
 
  @staticmethod
  def _ensure_tensor(other):
-  return other if isinstance(other, Tensor) else Tensor(other)
+  # If other is already a tensor, return it.
+  if isinstance(other, Tensor): return other
+  # If it's a number, make it a tensor
+  return Tensor(other)
+
+ def half(self):
+    """Casts the tensor to float16 (half precision)."""
+    return Tensor(self.data.astype(np.float16), requires_grad=self.requires_grad)
+
+ def float(self):
+    """Casts the tensor to float32."""
+    return Tensor(self.data.astype(np.float32), requires_grad=self.requires_grad)
 
  def __add__(self, other): return Add.apply(self, Tensor._ensure_tensor(other))
  def __mul__(self, other): return Mul.apply(self, Tensor._ensure_tensor(other))
@@ -55,6 +70,14 @@ class Tensor:
  def __neg__(self): return self * -1.0
  def __sub__(self, other): return self + (-other)
  def __rsub__(self, other): return Tensor._ensure_tensor(other) - self
+
+ def __truediv__(self, other): return self * (Tensor._ensure_tensor(other) ** -1)
+ def __rtruediv__(self, other): return Tensor._ensure_tensor(other) * (self ** -1)
+ def __pow__(self, other):
+    # Basic power support for internal use (e.g. 1/x = x**-1)
+    # This is a hacky implementation relying on numpy/cupy broadcasting
+    other = Tensor._ensure_tensor(other)
+    return Tensor(self.data ** other.data, requires_grad=self.requires_grad or other.requires_grad)
 
  def matmul(self, other): return MatMul.apply(self, Tensor._ensure_tensor(other))
  def relu(self): return ReLU.apply(self)

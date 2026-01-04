@@ -75,6 +75,7 @@ def main():
   parser.add_argument('--lr', type=float, default=3e-4, help='ऑप्टिमाइज़र के लिए लर्निंग रेट।')
   parser.add_argument('--save_path', type=str, default='caelonyx_agent_transformer.npz', help='प्रशिक्षित ट्रांसफॉर्मर मॉडल को सहेजने का पाथ।')
   parser.add_argument('--batch_size', type=int, default=16, help='ट्रेनिंग के लिए बैच साइज़।')
+  parser.add_argument('--accumulation_steps', type=int, default=4, help='Gradient accumulation steps to simulate larger batch sizes.')
   args = parser.parse_args()
 
   print("===== Caelonyx यूनिफाइड एजेंट ट्रेनिंग (अल्टीमेट) =====")
@@ -108,23 +109,43 @@ def main():
   loss_fn = CrossEntropyLoss()
 
   print("\n[AGENT TRAINING] मल्टी-मोडल ट्रेनिंग शुरू हो रही है...")
+  print(f"[INFO] Gradient Accumulation enabled: Steps={args.accumulation_steps}, Effective Batch Size={args.batch_size * args.accumulation_steps}")
+
   start_time = time.time()
+  optimizer.zero_grad()
+
+  accumulated_loss = 0
+
   for epoch in range(args.epochs):
     # अभी के लिए, हम केवल टेक्स्ट डेटा पर प्रशिक्षित करेंगे क्योंकि यह अधिक जटिल है
-    optimizer.zero_grad()
 
     input_tensor, target_np = data_loader.get_batch()
     logits = agent.transformer.forward(input_tensor)
     logits_reshaped = logits.reshape(-1, config['total_vocab_size'])
-    total_loss = loss_fn.forward(logits_reshaped, target_np)
+    loss = loss_fn.forward(logits_reshaped, target_np)
 
-    total_loss.backward()
-    optimizer.step()
+    # Normalize loss for accumulation
+    # Note: If custom Tensor doesn't support in-place division for scalar, use multiplication
+    (loss * (1.0 / args.accumulation_steps)).backward()
 
-    if (epoch + 1) % 100 == 0:
-      elapsed = time.time() - start_time
-      print(f"E[{epoch+1}/{args.epochs}], Loss: {total_loss.data.item():.4f}, Time/100: {elapsed:.2f}s")
-      start_time = time.time()
+    accumulated_loss += loss.data.item()
+
+    if (epoch + 1) % args.accumulation_steps == 0:
+        optimizer.step()
+        optimizer.zero_grad()
+
+        # Log every few updates
+        if ((epoch + 1) // args.accumulation_steps) % 25 == 0:
+             elapsed = time.time() - start_time
+             avg_loss = accumulated_loss / args.accumulation_steps
+             print(f"Step[{epoch+1}], Loss: {avg_loss:.4f}, Time: {elapsed:.2f}s")
+             start_time = time.time()
+
+        accumulated_loss = 0
+
+  # Final step if there are remaining gradients
+  if args.epochs % args.accumulation_steps != 0:
+      optimizer.step()
 
   agent.transformer.save(config['transformer_path'])
   print(f"\nप्रशिक्षण पूरा हुआ। एजेंट का ट्रांसफॉर्मर '{config['transformer_path']}' में सहेजा गया।")

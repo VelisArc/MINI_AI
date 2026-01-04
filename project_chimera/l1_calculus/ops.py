@@ -207,6 +207,36 @@ class LayerNormOp(Function):
         
         return grad_x, grad_gamma, grad_beta
 
+class RMSNormOp(Function):
+    def forward(self, x, gamma):
+        # RMS = sqrt(mean(x^2) + eps)
+        # x_norm = x / RMS
+        mean_square = (x ** 2).mean(axis=-1, keepdims=True)
+        rms = ARRAY_LIB.sqrt(mean_square + self.eps)
+        x_normalized = x / rms
+        self.save_for_backward(x, gamma, rms, x_normalized)
+        return gamma * x_normalized
+
+    def backward(self, g):
+        x, gamma, rms, x_normalized = self.saved_tensors
+        N = x.shape[-1]
+
+        axes_to_sum = tuple(range(g.ndim - 1))
+        if not axes_to_sum: axes_to_sum = None
+
+        grad_gamma = (g * x_normalized).sum(axis=axes_to_sum)
+
+        # dL/dx = gamma * dL/dy * dy/dx
+        # dy/dx involves the complex gradient of normalization
+        # Simplified: dx = (1/RMS) * (dy - x_norm * (dy . x_norm))
+        # where dy = g * gamma
+
+        grad_output = g * gamma
+        dot_prod = (grad_output * x_normalized).sum(axis=-1, keepdims=True)
+        grad_x = (grad_output - x_normalized * dot_prod) / rms
+
+        return grad_x, grad_gamma
+
 # --- PyTorch Accelerated Ops ---
 class Conv2dOp(Function):
     def forward(self, x, w, b):
