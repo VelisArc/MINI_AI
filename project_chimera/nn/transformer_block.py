@@ -2,33 +2,39 @@
 from .module import Module
 from .self_attention import SelfAttention
 from .linear import Linear
-from .layernorm import LayerNorm
-from .activations import ReLU
+from .rmsnorm import RMSNorm
+from .swiglu import SwiGLU
 from .containers import Sequential
 
 class TransformerBlock(Module):
  """
  A complete transformer block.
- NOW FIXED to handle a single input for self-attention.
+ Updated with Pre-Norm, RMSNorm, and SwiGLU.
  """
  def __init__(self, embed_size, heads, forward_expansion=4):
   super().__init__()
   self.attention = SelfAttention(embed_size, heads)
-  self.norm1 = LayerNorm(embed_size)
-  self.norm2 = LayerNorm(embed_size)
+  # Replace LayerNorm with RMSNorm (faster)
+  self.norm1 = RMSNorm(embed_size)
+  self.norm2 = RMSNorm(embed_size)
 
   ff_hidden_size = forward_expansion * embed_size
-  self.feed_forward = Sequential(
-   Linear(embed_size, ff_hidden_size),
-   ReLU(),
-   Linear(ff_hidden_size, embed_size)
-  )
+  # Replace standard FFN (Linear->ReLU->Linear) with SwiGLU
+  self.feed_forward = SwiGLU(embed_size, ff_hidden_size)
 
- # --- THE FIX IS HERE ---
  def forward(self, x, mask=None):
-  # When value, key, and query are the same, it's self-attention.
-  attention_out = self.attention(values=x, keys=x, query=x, mask=mask)
-  h = self.norm1(attention_out + x)
-  forward_out = self.feed_forward(h)
-  out = self.norm2(forward_out + h)
+  # Pre-Norm Architecture:
+  # x = x + Attention(Norm(x))
+  # x = x + FFN(Norm(x))
+
+  # 1. Attention block
+  x_norm = self.norm1(x)
+  attention_out = self.attention(values=x_norm, keys=x_norm, query=x_norm, mask=mask)
+  x = x + attention_out
+
+  # 2. Feed Forward block
+  x_norm2 = self.norm2(x)
+  forward_out = self.feed_forward(x_norm2)
+  out = x + forward_out
+
   return out
