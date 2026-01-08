@@ -11,9 +11,9 @@ class TransformerBlock(Module):
  A complete transformer block.
  Updated with Pre-Norm, RMSNorm, and SwiGLU.
  """
- def __init__(self, embed_size, heads, forward_expansion=4):
+ def __init__(self, embed_size, heads, forward_expansion=4, use_rope=True, max_len=5000):
   super().__init__()
-  self.attention = SelfAttention(embed_size, heads)
+  self.attention = SelfAttention(embed_size, heads, use_rope=use_rope, max_len=max_len)
   # Replace LayerNorm with RMSNorm (faster)
   self.norm1 = RMSNorm(embed_size)
   self.norm2 = RMSNorm(embed_size)

@@ -1,7 +1,7 @@
 # project_chimera/l1_calculus/tensor.py
 import numpy as np
 from ..l0_hal.hardware_abstraction import HAL
-from .ops import Add, Mul, MatMul, Tanh, Sum, Slice, Exp, Log, Softmax, Reshape, ReLU, Transpose
+from .ops import Add, Mul, MatMul, Tanh, Sum, Slice, Exp, Log, Softmax, Reshape, ReLU, Transpose, Concat
 
 class Tensor:
  def __init__(self, data, requires_grad=False, dtype=None):
@@ -101,3 +101,9 @@ class Tensor:
 
  def detach(self):
   return Tensor(self.data, requires_grad=False)
+
+ @staticmethod
+ def cat(tensors, axis=0):
+  tensors = [Tensor._ensure_tensor(t) for t in tensors]
+  # Pass axis as the last argument to apply
+  return Concat.apply(*tensors, axis)

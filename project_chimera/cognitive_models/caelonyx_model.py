@@ -9,6 +9,7 @@ from ..nn.linear import Linear
 class CaelonyxModel(Module):
  """
  The main Caelonyx Language Model, using a robust Transformer architecture.
+ Now upgraded with Rotary Positional Embeddings (RoPE).
  """
  def __init__(
   self, vocab_size: int, embed_size: int, num_layers: int,
@@ -17,18 +18,20 @@ class CaelonyxModel(Module):
   super().__init__()
   self.embed_size = embed_size
   self.embedding = Embedding(vocab_size, embed_size)
-  self.positional_encoding = PositionalEncoding(embed_size, max_length)
+
+  # Removed absolute PositionalEncoding in favor of RoPE in SelfAttention
+  # self.positional_encoding = PositionalEncoding(embed_size, max_length)
 
   # --- FIX: Use Sequential correctly ---
   self.layers = Sequential(
-   *[TransformerBlock(embed_size, heads, forward_expansion) for _ in range(num_layers)]
+   *[TransformerBlock(embed_size, heads, forward_expansion, use_rope=True, max_len=max_length) for _ in range(num_layers)]
   )
 
   self.fc_out = Linear(embed_size, vocab_size)
 
  def forward(self, x_tokens, mask=None):
   x = self.embedding(x_tokens)
-  x = self.positional_encoding(x)
+  # x = self.positional_encoding(x) # Removed for RoPE
 
   # Sequential container passes the input through each layer.
   # We assume mask handling needs to be done inside if needed,
