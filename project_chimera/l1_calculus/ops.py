@@ -267,3 +267,31 @@ class ConvTranspose2dOp(Function):
         dx, dw = to_numpy(grads[0]), to_numpy(grads[1])
         db = dout.sum(axis=(0, 2, 3))
         return dx, dw, db
+
+class Concat(Function):
+    def forward(self, *args):
+        self.axis = args[-1]
+        self.inputs = args[:-1]
+        self.save_for_backward(*self.inputs)
+
+        # Extract data from tensors
+        arrays = [x.data if hasattr(x, 'data') else x for x in self.inputs]
+        return HAL.ARRAY_LIB.concatenate(arrays, axis=self.axis)
+
+    def backward(self, g):
+        # We need to slice g back into the original shapes
+        grads = []
+        start_idx = 0
+        for inp in self.inputs:
+            # Determine size along the concatenation axis
+            dim_size = inp.shape[self.axis]
+
+            # Construct slice object dynamically
+            # slice(None) is equivalent to ':'
+            slices = [slice(None)] * g.ndim
+            slices[self.axis] = slice(start_idx, start_idx + dim_size)
+
+            grads.append(g[tuple(slices)])
+            start_idx += dim_size
+
+        return tuple(grads)

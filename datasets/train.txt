@@ -1,0 +1,1 @@
+This is a longer text to ensure we have enough tokens for the training process.  LICENSE README.md SECURITY.md app.py datasets diagnose.py mini_train.py project_chimera quick_start.sh requirements-cpu.txt requirements-gpu.txt run.py run_agent.py run_caelonyx.py test_rope_minimal.py train_agent.py train_multimodal.py train_vqvae.py train_vqvae_multi_gpu.py vqvae_model.npz 20
