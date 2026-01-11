@@ -3,6 +3,8 @@ import numpy as np; import os
 from ..cognitive_models.caelonyx_model import CaelonyxModel
 from ..cognitive_models.vq_vae import VQVAE
 from ..l1_calculus.tensor import Tensor
+from ..l1_calculus.optimizers import Adam
+from ..nn.losses import CrossEntropyLoss
 from ..l2_data.unigram_tokenizer import UnigramTokenizer
 try:
  import torch; from torchvision.utils import save_image
@@ -12,6 +14,10 @@ class CaelonyxAgent:
  def __init__(self, config):
   self.config = config
   self.is_ready = False # NEW: एक फ्लैग यह ट्रैक करने के लिए कि क्या मॉडल लोड हुए हैं
+  # Optimizer for real-time learning (initialized later)
+  self.optimizer = None
+  self.loss_fn = CrossEntropyLoss()
+
   self.vqvae = VQVAE(
    in_channels=3,
    hidden_channels=config['vq_hidden_channels'],
@@ -33,6 +39,10 @@ class CaelonyxAgent:
   try:
    self.vqvae.load(self.config['vqvae_path'])
    self.transformer.load(self.config['transformer_path'])
+
+   # Initialize optimizer with loaded parameters
+   self.optimizer = Adam(self.transformer.parameters(), lr=1e-4) # Lower LR for fine-tuning
+
    # एक सरल कॉर्पस पर हमेशा टोकनाइज़र को प्रशिक्षित करें
    self.tokenizer.train(["hello world", "a red square", "what is ai", "generate image of a blue circle"])
    print("[Agent] मॉडल्स सफलतापूर्वक लोड हो गए।")
@@ -48,12 +58,46 @@ class CaelonyxAgent:
  def process_prompt(self, prompt: str):
   if not self.is_ready:
    print(">>> Caelonyx: मैं अभी तैयार नहीं हूँ क्योंकि मेरे मॉडल लोड नहीं हुए हैं। कृपया पहले मुझे प्रशिक्षित करें।")
-   return
+   return None
 
   if prompt.lower().startswith("generate image of"):
    self.generate_image(prompt[len("generate image of"):].strip())
+   return None
   else:
-   self.chat(prompt)
+   return self.chat(prompt)
+
+ def learn_from_interaction(self, user_input, response_text, reward):
+    """
+    Performs a single training step based on the interaction.
+    If reward is positive, we reinforce the (input -> response) pair.
+    """
+    if reward <= 0: return # Only learn from positive feedback for now
+
+    print("[Agent] Learning from this interaction...")
+
+    # Prepare data
+    full_text = user_input + " " + response_text
+    tokens = self.tokenizer.encode(full_text)
+    # Simple autoregressive task: predict next token
+    # input: tokens[:-1], target: tokens[1:]
+
+    if len(tokens) < 2: return
+
+    input_seq = tokens[:-1]
+    target_seq = tokens[1:]
+
+    input_tensor = Tensor(np.array([input_seq], dtype=np.int32))
+    target_np = np.array(target_seq, dtype=np.int32)
+
+    # Training step
+    self.optimizer.zero_grad()
+    logits = self.transformer.forward(input_tensor)
+    logits_reshaped = logits.reshape(-1, self.config['total_vocab_size'])
+    loss = self.loss_fn.forward(logits_reshaped, target_np)
+    loss.backward()
+    self.optimizer.step()
+
+    print(f"[Agent] Updated weights. Loss: {loss.data.item():.4f}")
 
  def chat(self, user_input: str):
   print(f">>> आप: {user_input}")
@@ -84,6 +128,7 @@ class CaelonyxAgent:
 
   response_text = self.tokenizer.decode(response_tokens)
   print(f">>> Caelonyx: {response_text}")
+  return response_text
 
  def generate_image(self, prompt: str):
   print(f"[Agent] इमेज जेनरेट की जा रही है: '{prompt}'")

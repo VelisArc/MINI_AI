@@ -11,8 +11,17 @@ class Hive:
   def __init__(self, num_agents: int):
     print(f"[HIVE] Initializing Hive Mind with {num_agents} agents.")
     self.environment = DynamicMathEnvironment()
-    self.agents = [PrometheusAgent(agent_id=i) for i in range(num_agents)]
+    self.agents = [PrometheusAgent(agent_id=i, hive=self) for i in range(num_agents)]
     self.shared_knowledge = {} # Best genes discovered by any agent
+    self.experience_buffer = []
+
+  def broadcast_experience(self, experience_data):
+    """Receives experience from an agent and stores it."""
+    self.experience_buffer.append(experience_data)
+    # Keep buffer size manageable
+    if len(self.experience_buffer) > 1000:
+        self.experience_buffer.pop(0)
+    print(f"[HIVE] Received experience from Agent-{experience_data['agent_id']}. Buffer size: {len(self.experience_buffer)}")
 
   def run_lifecycle(self, num_cycles: int):
     for i in range(num_cycles):

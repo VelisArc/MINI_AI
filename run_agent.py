@@ -38,7 +38,16 @@ def main():
                 break
             
             # एजेंट से प्रतिक्रिया प्राप्त करें
-            agent.process_prompt(prompt)
+            response_text = agent.process_prompt(prompt)
+
+            # Real-time feedback loop
+            if response_text and not prompt.lower().startswith("generate image"):
+                feedback = input(">>> फीडबैक (1=अच्छा, 0=तटस्थ, -1=बुरा): ").strip()
+                try:
+                    reward = float(feedback) if feedback else 0.0
+                    agent.learn_from_interaction(prompt, response_text, reward)
+                except ValueError:
+                    pass
 
         except Exception as e:
             print(f"एक अप्रत्याशित त्रुटि हुई: {e}")

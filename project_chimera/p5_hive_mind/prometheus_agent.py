@@ -11,8 +11,9 @@ class PrometheusAgent:
   The final Omega-ready AGI Agent. It uses a fully trained synthesizer
   and is ready for large-scale compute and data.
   """
-  def __init__(self, agent_id: int):
+  def __init__(self, agent_id: int, hive=None):
     self.id = agent_id
+    self.hive = hive
     self.sle = SymbolicLogicEngine()
     self.synthesizer_module_name = "project_chimera.l3_cognitive.neural_program_synthesizer"
     self.synthesizer_file_path = "project_chimera/l3_cognitive/neural_program_synthesizer.py"
@@ -31,6 +32,35 @@ class PrometheusAgent:
 
     print(f"[AGENT-{self.id}] Prometheus Agent vOmega (Production Ready) initialized.")
     self.reload_and_train_synthesizer()
+
+  def learn_from_interaction(self, input_text, response_text, reward):
+    """
+    Real-time learning from chat interactions.
+    reward: +1 for positive feedback, -1 for negative, 0 for neutral
+    """
+    if not self.synthesizer_instance: return
+
+    print(f"[AGENT-{self.id}] Learning from interaction (Reward: {reward})...")
+
+    # Simple reinforcement signal:
+    # If reward is positive, train to increase probability of this response.
+    # If reward is negative, we might want to unlearn (not implemented simply here) or just not train.
+
+    if reward > 0:
+        # Create a training example
+        # In a real system, we'd use the proper task's training method
+        # Here we mock the data passing to the internal optimizer
+        pass
+
+    # Broadcast to Hive
+    if self.hive:
+        experience = {
+            'input': input_text,
+            'response': response_text,
+            'reward': reward,
+            'agent_id': self.id
+        }
+        self.hive.broadcast_experience(experience)
 
   def reload_and_train_synthesizer(self, gene_name="baseline"):
     print(f"[AGENT-{self.id}] Reloading brain with gene '{gene_name}' and performing heavy training...")
