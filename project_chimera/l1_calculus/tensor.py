@@ -1,7 +1,7 @@
 # project_chimera/l1_calculus/tensor.py
 import numpy as np
 from ..l0_hal.hardware_abstraction import HAL
-from .ops import Add, Mul, MatMul, Tanh, Sum, Slice, Exp, Log, Softmax, Reshape, ReLU, Transpose, Concat
+from .ops import Add, Mul, MatMul, Tanh, Sum, Slice, Exp, Log, Softmax, Reshape, ReLU, Transpose, Concat, Power
 
 class Tensor:
  def __init__(self, data, requires_grad=False, dtype=None):
@@ -73,11 +73,7 @@ class Tensor:
 
  def __truediv__(self, other): return self * (Tensor._ensure_tensor(other) ** -1)
  def __rtruediv__(self, other): return Tensor._ensure_tensor(other) * (self ** -1)
- def __pow__(self, other):
-    # Basic power support for internal use (e.g. 1/x = x**-1)
-    # This is a hacky implementation relying on numpy/cupy broadcasting
-    other = Tensor._ensure_tensor(other)
-    return Tensor(self.data ** other.data, requires_grad=self.requires_grad or other.requires_grad)
+ def __pow__(self, other): return Power.apply(self, Tensor._ensure_tensor(other))
 
  def matmul(self, other): return MatMul.apply(self, Tensor._ensure_tensor(other))
  def relu(self): return ReLU.apply(self)
