@@ -87,6 +87,12 @@ class Mul(Function):
     def forward(self, x, y): self.save_for_backward(x, y); return x * y
     def backward(self, g): x, y = self.saved_tensors; return g * y, g * x
 
+class Power(Function):
+    def forward(self, x, y): self.save_for_backward(x, y); return x ** y
+    def backward(self, g):
+        x, y = self.saved_tensors
+        return g * y * (x ** (y - 1)), g * (x ** y) * HAL.log(x)
+
 # --- ⚠️ फिक्स: अंतिम "स्मार्ट" MatMul.backward ---
 class MatMul(Function):
     def forward(self, x, y): 
